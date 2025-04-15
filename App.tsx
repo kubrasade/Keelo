@@ -5,6 +5,8 @@ import SplashScreen from './src/screens/SplashScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen'; 
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import DietitianRegisterScreen from './src/screens/DietitianRegisterScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import { RootStackParamList } from './src/navigation/types';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -17,6 +19,8 @@ const App = () => {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="DietitianRegister" component={DietitianRegisterScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
