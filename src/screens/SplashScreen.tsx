@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 
 const SplashScreen = ({ navigation }: any) => {
   const letterAnim1 = useRef(new Animated.Value(-100)).current;
@@ -49,15 +49,12 @@ const SplashScreen = ({ navigation }: any) => {
   useEffect(() => {
     startAnimation();
     setTimeout(() => {
-      navigation.navigate('Home'); // 3 saniye sonra Home ekranına geçiş
-    }, 3000); // 3 saniye sonra geçiş yap
+        navigation.navigate('Onboarding');
+        }, 3000); 
   }, []);
 
   return (
     <View style={styles.container}>
-      {/* StatusBar'ı gizle */}
-      <StatusBar barStyle="light-content" hidden={true} />
-
       <Animated.View style={styles.letterContainer}>
         <Animated.Text
           style={[styles.letter, { transform: [{ translateY: letterAnim1 }] }]}>
@@ -89,25 +86,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#d3d3d3', // Açık gri arka plan
+    backgroundColor: '#d3d3d3', 
   },
   letterContainer: {
-    flexDirection: 'row', // Harfleri yan yana hizala
+    flexDirection: 'row', 
     justifyContent: 'center',
     alignItems: 'center',
   },
   letter: {
-    fontSize: 60, // Daha küçük font
+    fontSize: 60, 
     fontWeight: 'bold',
     color: 'white',
-    marginHorizontal: 5, // Harfler arasına mesafe ekleyelim
+    marginHorizontal: 5, 
     fontFamily: 'Poppins-Regular',
   },
   footerText: {
-    fontSize: 18, // Daha küçük yazı boyutu
+    fontSize: 18, 
     color: 'white',
     marginTop: 20,
-    fontFamily: 'Poppins-Regular', // Aynı fontu kullanıyoruz
+    fontFamily: 'Poppins-Regular', 
   },
 });
 
