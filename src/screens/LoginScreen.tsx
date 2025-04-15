@@ -15,13 +15,13 @@ import { RootStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
     try {
       const response = await axios.post(`${BASE_URL}/authub/login/`, {
-        username: email,
+        username: username,
         password,
       });
 
@@ -47,8 +47,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.input}
             placeholder="Username"
             placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+
           />
           <TextInput
             style={styles.input}
