@@ -1,7 +1,5 @@
-// ✅ ForgotPasswordScreen.tsx
 import React, { useState } from 'react';
 import { BASE_URL } from '../config/api';
-
 import {
   View,
   Text,
@@ -20,35 +18,38 @@ const { width } = Dimensions.get('window');
 type Props = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
 
 const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
 
-  const handleReset = async () => {
+  const handleForgotPassword = async () => {
     try {
-      const response = await axios.post(`${BASE_URL}/authub/forgot-password/`, {
-
-        username,
+      const response = await axios.post(`${BASE_URL}/api/auth/password-reset-request/`, {
+        email,
       });
+
       Alert.alert('Success', 'Password reset link has been sent!');
+      navigation.navigate('Login'); // Redirect to login after success
     } catch (error) {
-      Alert.alert('Error', 'Kullanıcı bulunamadı veya sunucu hatası.');
+      Alert.alert('Error', 'There was an issue with the email address.');
+      console.error('Error:', error);
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Forgot Password</Text>
-      <Text style={styles.subtitle}>Enter your username to reset your password</Text>
+      <Text style={styles.subtitle}>Enter your email to reset your password</Text>
 
       <TextInput
-        placeholder="Username"
-        placeholderTextColor="#999"
-        autoCapitalize="none"
-        value={username}
-        onChangeText={setUsername}
         style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="#999"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleReset}>
+      <TouchableOpacity style={styles.button} onPress={handleForgotPassword}>
         <Text style={styles.buttonText}>Send Reset Link</Text>
       </TouchableOpacity>
 

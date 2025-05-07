@@ -26,7 +26,6 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
@@ -46,7 +45,27 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+	  <string>Ionicons.ttf</string>
+	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	
+	<key>CFBundleURLTypes</key>
+	<array>
+	  <dict>
+	    <key>CFBundleURLSchemes</key>
+	    <array>
+	      <string>keelo</string>
+	    </array>
+	  </dict>
+	</array> 
+	
+	<!-- İzinler Burada Olmalı -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to update your profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to allow you to take pictures.</string>
 </dict>
 </plist>
