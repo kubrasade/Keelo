@@ -9,6 +9,7 @@ const MEAL_TYPES = [
   { label: 'Noon', value: 2 },
   { label: 'Night', value: 3 },
   { label: 'Snack', value: 4 },
+  { label: 'Dessert', value: 5},
 ];
 
 const DietitianDietPlanScreen = () => {
@@ -138,7 +139,12 @@ const DietitianDietPlanScreen = () => {
             />
             <Text>Recipes:</Text>
             <FlatList
-              data={Array.isArray(recipes) ? recipes : []}
+              data={Array.isArray(recipes) ? recipes.filter(r => {
+                if (Array.isArray(r.meal_types)) {
+                  return r.meal_types.includes(Number(mealType));
+                }
+                return r.meal_type === Number(mealType);
+              }) : []}
               horizontal
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -235,59 +241,66 @@ const DietitianDietPlanScreen = () => {
                     <View key={meal.value} style={{ marginBottom: 8 }}>
                       <Text style={{ marginBottom: 4 }}>{meal.label}:</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {recipes.map(r => (
-                          <TouchableOpacity
-                            key={r.id}
-                            style={{
-                              width: 120,
-                              marginRight: 8,
-                              backgroundColor: (weeklyPlans[dayNum]?.[meal.value] == String(r.id)) ? '#43e97b' : '#fff',
-                              borderRadius: 8,
-                              padding: 8,
-                              borderWidth: 1,
-                              borderColor: (weeklyPlans[dayNum]?.[meal.value] == String(r.id)) ? '#43e97b' : '#ddd',
-                              alignItems: 'center'
-                            }}
-                            onPress={() => setWeeklyPlans(prev => ({
-                              ...prev,
-                              [dayNum]: { ...prev[dayNum], [meal.value]: String(r.id) }
-                            }))}
-                          >
-                            {r.image ? (
-                              <Image 
-                                source={{ uri: r.image }} 
-                                style={{ 
+                        {recipes
+                          .filter(r => {
+                            if (Array.isArray(r.meal_types)) {
+                              return r.meal_types.includes(meal.value);
+                            }
+                            return r.meal_type === meal.value;
+                          })
+                          .map(r => (
+                            <TouchableOpacity
+                              key={r.id}
+                              style={{
+                                width: 120,
+                                marginRight: 8,
+                                backgroundColor: (weeklyPlans[dayNum]?.[meal.value] == String(r.id)) ? '#43e97b' : '#fff',
+                                borderRadius: 8,
+                                padding: 8,
+                                borderWidth: 1,
+                                borderColor: (weeklyPlans[dayNum]?.[meal.value] == String(r.id)) ? '#43e97b' : '#ddd',
+                                alignItems: 'center'
+                              }}
+                              onPress={() => setWeeklyPlans(prev => ({
+                                ...prev,
+                                [dayNum]: { ...prev[dayNum], [meal.value]: String(r.id) }
+                              }))}
+                            >
+                              {r.image ? (
+                                <Image 
+                                  source={{ uri: r.image }} 
+                                  style={{ 
+                                    width: 80, 
+                                    height: 80, 
+                                    borderRadius: 8,
+                                    marginBottom: 4
+                                  }} 
+                                />
+                              ) : (
+                                <View style={{ 
                                   width: 80, 
                                   height: 80, 
                                   borderRadius: 8,
-                                  marginBottom: 4
-                                }} 
-                              />
-                            ) : (
-                              <View style={{ 
-                                width: 80, 
-                                height: 80, 
-                                borderRadius: 8,
-                                backgroundColor: '#eee',
-                                marginBottom: 4,
-                                justifyContent: 'center',
-                                alignItems: 'center'
-                              }}>
-                                <Text style={{ color: '#666' }}>No Image</Text>
-                              </View>
-                            )}
-                            <Text 
-                              style={{ 
-                                color: (weeklyPlans[dayNum]?.[meal.value] == String(r.id)) ? '#fff' : '#222',
-                                textAlign: 'center',
-                                fontSize: 12
-                              }}
-                              numberOfLines={2}
-                            >
-                              {r.name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
+                                  backgroundColor: '#eee',
+                                  marginBottom: 4,
+                                  justifyContent: 'center',
+                                  alignItems: 'center'
+                                }}>
+                                  <Text style={{ color: '#666' }}>No Image</Text>
+                                </View>
+                              )}
+                              <Text 
+                                style={{ 
+                                  color: (weeklyPlans[dayNum]?.[meal.value] == String(r.id)) ? '#fff' : '#222',
+                                  textAlign: 'center',
+                                  fontSize: 12
+                                }}
+                                numberOfLines={2}
+                              >
+                                {r.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
                       </ScrollView>
                     </View>
                   ))}

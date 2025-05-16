@@ -32,7 +32,7 @@ type DietitianProfile = {
 
 const DietitianChatListScreen: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [clients, setclients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingRoomId, setCreatingRoomId] = useState<number | null>(null);
   const [dietitianId, setDietitianId] = useState<number | null>(null);
@@ -52,7 +52,7 @@ const DietitianChatListScreen: React.FC = () => {
       });
       const myDietitianProfile = resDietitians.data.find((d: DietitianProfile) => d.user.id === userId);
       if (!myDietitianProfile) {
-        Alert.alert('Error', 'Diyetisyen profiliniz bulunamadı!');
+        Alert.alert('Error', 'Dietitian profile not found!');
         setLoading(false);
         return;
       }
@@ -63,22 +63,22 @@ const DietitianChatListScreen: React.FC = () => {
       });
       setRooms(resRooms.data);
 
-      const resclients = await axios.get(`${BASE_URL}/api/match/matchings/`, {
+      const resClients = await axios.get(`${BASE_URL}/api/match/matchings/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const allClients = resclients.data.map((m: any) => m.client);
+      const allClients = resClients.data.map((m: any) => m.client);
       const uniqueClients = allClients.filter(
         (client: any, index: number, self: any[]) =>
           index === self.findIndex((c) => c.id === client.id)
       );
-      setclients(uniqueClients);
+      setClients(uniqueClients);
       setLoading(false);
     })();
   }, []);
 
   const openChat = async (clientId: number) => {
     if (!dietitianId) {
-      Alert.alert('Error', 'Diyetisyen ID alınamadı!');
+      Alert.alert('Error', 'Failed to get dietitian ID!');
       return;
     }
     setCreatingRoomId(clientId);
@@ -186,4 +186,4 @@ const styles = StyleSheet.create({
   lastMessage: { color: '#888', fontSize: 13, marginTop: 2 },
 });
 
-export default DietitianChatListScreen; 
+export default DietitianChatListScreen;

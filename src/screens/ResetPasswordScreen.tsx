@@ -16,7 +16,6 @@ const ResetPasswordScreen: React.FC<Props> = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
-    // Handle deep linking
     const handleDeepLink = (event: { url: string }) => {
       const { url } = event;
       if (url.startsWith('keelo://reset-password/')) {
@@ -28,17 +27,14 @@ const ResetPasswordScreen: React.FC<Props> = ({ navigation }) => {
       }
     };
 
-    // Add event listener for deep linking
     Linking.addEventListener('url', handleDeepLink);
 
-    // Check if we have route params
     if (route.params) {
       const { uidb64: routeUidb64, token: routeToken } = route.params as { uidb64: string, token: string };
       setUidb64(routeUidb64);
       setToken(routeToken);
     }
 
-    // Check initial URL if app was opened from a link
     Linking.getInitialURL().then((url) => {
       if (url && url.startsWith('keelo://reset-password/')) {
         const parts = url.split('/');

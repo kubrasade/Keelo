@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, SafeAreaView, ActivityIndicator } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -9,6 +9,7 @@ import { BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { Calendar } from 'react-native-calendars';
+import { useFocusEffect } from '@react-navigation/native';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'DietitianHomeScreen'>;
@@ -30,40 +31,77 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
   const [reviewCount, setReviewCount] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
   const [statisticsModalVisible, setStatisticsModalVisible] = useState(false);
+  const [dietitianId, setDietitianId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  useEffect(() => {
-    fetchUserData();
-    fetchClients();
-    fetchAppointments();
-    fetchReviewAndMatchCounts();
-  }, []);
-
   const fetchUserData = async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
-      if (token) {
-        const response = await axios.get(`${BASE_URL}/api/users/me/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setUserData(response.data);
-        setInitials((response.data.first_name[0] || '') + (response.data.last_name[0] || ''));
+      if (!token) {
+        throw new Error('Token not found');
+      }
 
-        const profileResponse = await axios.get(`${BASE_URL}/api/dietitians/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setDietitianProfile(profileResponse.data);
+      const res = await axios.get(`${BASE_URL}/api/users/me/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.data || !res.data.id) {
+        throw new Error('User information could not be retrieved');
+      }
+
+      setUserData(res.data);
+      setInitials(((res.data.first_name?.[0] || '') + (res.data.last_name?.[0] || '')).toUpperCase());
+
+      // Fetch dietitian profile for this user
+      const profileRes = await axios.get(`${BASE_URL}/api/dietitians/?user=${res.data.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const myDietitianProfile = profileRes.data && profileRes.data.length > 0 ? profileRes.data[0] : null;
+      setDietitianProfile(myDietitianProfile);
+      if (myDietitianProfile && myDietitianProfile.id) {
+        setDietitianId(myDietitianProfile.id);
+        return myDietitianProfile.id;
+      } else {
+        throw new Error('Dietitian profile not found');
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('User information could not be retrieved:', error);
+      setError('User information could not be retrieved. Please log in again.');
+      throw error;
     }
+  };
+
+  const loadAllData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const dietitianId = await fetchUserData();
+      await Promise.all([
+        fetchClients(),
+        fetchAppointments(dietitianId),
+        fetchReviewAndMatchCounts(dietitianId)
+      ]);
+    } catch (error) {
+      console.error('Data loading error:', error);
+      setError('An error occurred while loading data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadAllData();
+    }, [])
+  );
+
+  const retryLoading = () => {
+    loadAllData();
   };
 
   const fetchClients = async () => {
@@ -83,10 +121,12 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = async (dietitianIdParam?: number) => {
+    const id = typeof dietitianIdParam === 'number' ? dietitianIdParam : dietitianId;
+    if (!id) return;
     try {
       const token = await AsyncStorage.getItem('access_token');
-      const res = await axios.get(`${BASE_URL}/api/appointment/`, {
+      const res = await axios.get(`${BASE_URL}/api/appointment/?dietitian=${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAppointments(res.data);
@@ -113,14 +153,16 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
     return 0;
   };
 
-  const fetchReviewAndMatchCounts = async () => {
+  const fetchReviewAndMatchCounts = async (dietitianIdParam?: number) => {
+    const id = typeof dietitianIdParam === 'number' ? dietitianIdParam : dietitianId;
+    if (!id) return;
     try {
       const token = await AsyncStorage.getItem('access_token');
-      const matchRes = await axios.get(`${BASE_URL}/api/match/matchings/`, {
+      const matchRes = await axios.get(`${BASE_URL}/api/match/matchings/?dietitian=${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMatchCount(getCount(matchRes.data));
-      const reviewRes = await axios.get(`${BASE_URL}/api/match/reviews/`, {
+      const reviewRes = await axios.get(`${BASE_URL}/api/match/reviews/?dietitian=${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setReviewCount(getCount(reviewRes.data));
@@ -169,6 +211,43 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
       </TouchableOpacity>
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.text }]}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.errorContainer, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.text }]}>{error}</Text>
+        <TouchableOpacity 
+          style={[styles.retryButton, { backgroundColor: theme.primary }]} 
+          onPress={retryLoading}
+        >
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!userData || !dietitianId) {
+    return (
+      <View style={[styles.errorContainer, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.text }]}>User information could not be retrieved. Please log in again.</Text>
+        <TouchableOpacity 
+          style={[styles.retryButton, { backgroundColor: theme.primary }]} 
+          onPress={() => navigation.replace('Login')}
+        >
+          <Text style={styles.retryButtonText}>Log In</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -530,6 +609,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

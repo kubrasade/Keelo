@@ -27,9 +27,9 @@ const DietitianProgressScreen = () => {
       const res = await axios.get(`${BASE_URL}/api/match/matchings/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMatchings((res.data as any[]).filter((m: any) => m.status === 2)); // Accepted
+      setMatchings((res.data as any[]).filter((m: any) => m.status === 2)); 
     } catch (err) {
-      Alert.alert('Hata', 'Eşleşmeler alınamadı.');
+      Alert.alert('Error', 'Failed to fetch matchings.');
     }
     setLoading(false);
   };
@@ -42,7 +42,7 @@ const DietitianProgressScreen = () => {
       });
       setWorkouts(res.data as any[]);
     } catch (err) {
-      Alert.alert('Hata', 'Antrenmanlar alınamadı.');
+      Alert.alert('Error', 'Failed to fetch workouts.');
     }
   };
 
@@ -55,7 +55,7 @@ const DietitianProgressScreen = () => {
 
   const handleAddProgress = async () => {
     if (!workoutId || !date) {
-      Alert.alert('Uyarı', 'Tüm alanları doldurun.');
+      Alert.alert('Warning', 'Please fill in all fields.');
       return;
     }
     setSubmitting(true);
@@ -76,10 +76,10 @@ const DietitianProgressScreen = () => {
       await axios.post(`${BASE_URL}/api/traning/progress/`, body, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      Alert.alert('Başarılı', 'Progress eklendi.');
+      Alert.alert('Success', 'Progress added.');
       setModalVisible(false);
     } catch (err) {
-      Alert.alert('Hata', 'Progress eklenemedi.');
+      Alert.alert('Error', 'Failed to add progress.');
     }
     setSubmitting(false);
   };
@@ -90,7 +90,7 @@ const DietitianProgressScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Eşleştiğin Danışanlar</Text>
+      <Text style={styles.title}>Matched Clients</Text>
       <FlatList
         data={matchings}
         keyExtractor={item => item.id.toString()}
@@ -100,13 +100,13 @@ const DietitianProgressScreen = () => {
             <Text style={styles.email}>{item.client.user.email}</Text>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>Hiç eşleşme yok.</Text>}
+        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No matchings found.</Text>}
       />
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalBg}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Progress Ekle</Text>
-            <Text>Antrenman:</Text>
+            <Text style={styles.modalTitle}>Add Progress</Text>
+            <Text>Workout:</Text>
             <FlatList
               data={Array.isArray(workouts) ? workouts : []}
               horizontal
@@ -121,11 +121,11 @@ const DietitianProgressScreen = () => {
               keyExtractor={item => (item?.id ? item.id.toString() : Math.random().toString())}
               style={{ marginVertical: 8 }}
             />
-            <Text>Tarih (YYYY-MM-DD):</Text>
+            <Text>Date (YYYY-MM-DD):</Text>
             <TextInput value={date} onChangeText={setDate} placeholder="2025-05-03" style={styles.input} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-              <Button title="İptal" onPress={() => setModalVisible(false)} color="#888" />
-              <Button title={submitting ? 'Ekleniyor...' : 'Ekle'} onPress={handleAddProgress} disabled={submitting} />
+              <Button title="Cancel" onPress={() => setModalVisible(false)} color="#888" />
+              <Button title={submitting ? 'Adding...' : 'Add'} onPress={handleAddProgress} disabled={submitting} />
             </View>
           </View>
         </View>

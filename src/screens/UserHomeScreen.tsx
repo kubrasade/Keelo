@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -27,36 +27,69 @@ const UserHomeScreen: React.FC<Props> = ({ navigation }) => {
   const [initials, setInitials] = useState<string>('');
   const { theme, isDark } = useTheme();
   const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen); 
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('Token not found');
+      }
+
+      const res = await axios.get(`${BASE_URL}/api/users/me/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.data || !res.data.id) {
+        throw new Error('User information could not be retrieved');
+      }
+
+      setUserData(res.data);
+      setInitials(((res.data.first_name?.[0] || '') + (res.data.last_name?.[0] || '')).toUpperCase());
+
+      const clientProfileRes = await axios.get(`${BASE_URL}/api/clients/?user=${res.data.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (clientProfileRes.data && clientProfileRes.data.length > 0) {
+        setClientProfile(clientProfileRes.data[0]);
+      }
+      setLoading(false);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setError('Failed to fetch user data');
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchUserData();
   }, []);
 
-  const fetchUserData = async () => {
-    try {
-      const token = await AsyncStorage.getItem('access_token');
-      if (token) {
-        const response = await axios.get(`${BASE_URL}/api/users/me/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setUserData(response.data);
-        setInitials((response.data.first_name[0] || '') + (response.data.last_name[0] || ''));
+  const retryLoading = () => {
+    fetchUserData();
+  };
 
-        const profileResponse = await axios.get(`${BASE_URL}/api/clients/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setClientProfile(profileResponse.data);
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
+  const safeSearchText = searchText || '';
+
+  const handleSearch = () => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return;
+    if (q.includes('dietitian')) {
+      navigation.navigate('FindDietitianScreen', { query: safeSearchText });
+    } else if (q.includes('exercise') || q.includes('progress')) {
+      navigation.navigate('ProgressScreen');
+    } else if (q.includes('diet') || q.includes('plan')) {
+      navigation.navigate('DietPlanScreen');
+    } else if (q.includes('health') || q.includes('health')) {
+      navigation.navigate('HealthMetricsScreen');
+    } else {
+      navigation.navigate('FindDietitianScreen', { query: safeSearchText });
     }
   };
 
@@ -78,23 +111,6 @@ const UserHomeScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const handleSearch = () => {
-    const q = searchText.trim().toLowerCase();
-    if (!q) return;
-
-    if (q.includes('diyetisyen')) {
-      navigation.navigate('FindDietitianScreen', { query: searchText });
-    } else if (q.includes('egzersiz') || q.includes('progress')) {
-      navigation.navigate('ProgressScreen');
-    } else if (q.includes('diyet') || q.includes('plan')) {
-      navigation.navigate('DietPlanScreen');
-    } else if (q.includes('sağlık') || q.includes('health')) {
-      navigation.navigate('HealthMetricsScreen');
-    } else {
-      navigation.navigate('FindDietitianScreen', { query: searchText });
-    }
-  };
-
   const ExploreCard: React.FC<ExploreCardProps> = ({ image, title, desc, onPress }) => (
   <View style={styles.productCard}>
     <Image source={image} style={styles.productImage} />
@@ -105,6 +121,37 @@ const UserHomeScreen: React.FC<Props> = ({ navigation }) => {
     </TouchableOpacity>
   </View>
 );
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={{ marginTop: 10, color: theme.text }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 20 }}>
+        <Text style={{ color: theme.text, fontSize: 16, textAlign: 'center', marginBottom: 20 }}>{error}</Text>
+        <TouchableOpacity style={{ backgroundColor: theme.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }} onPress={retryLoading}>
+          <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background, padding: 20 }}>
+        <Text style={{ color: theme.text, fontSize: 16, textAlign: 'center', marginBottom: 20 }}>Failed to retrieve user data. Please try logging in again.</Text>
+        <TouchableOpacity style={{ backgroundColor: theme.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }} onPress={() => navigation.replace('Login')}>
+          <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -147,8 +194,7 @@ const UserHomeScreen: React.FC<Props> = ({ navigation }) => {
           image={require('../../assets/images/dietitian.png')}
           title="Choose a Dietitian"
           desc="Contact expert dietitians."
-          onPress={() => navigation.navigate('FindDietitianScreen')}
-        />
+          onPress={() => navigation.navigate('FindDietitianScreen', { query: '' })}        />
         <ExploreCard
           image={require('../../assets/images/recipes.png')}
           title="See Recipes"

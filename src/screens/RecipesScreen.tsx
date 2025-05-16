@@ -14,9 +14,12 @@ const RecipesScreen = () => {
   const [filtered, setFiltered] = useState<any[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [dietaryTags, setDietaryTags] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
+    fetchTags();
   }, []);
 
   const fetchData = async () => {
@@ -38,29 +41,71 @@ const RecipesScreen = () => {
     setLoading(false);
   };
 
+  const fetchTags = async () => {
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      const res = await axios.get(`${BASE_URL}/api/meal/dietary-tags/`, { headers: { Authorization: `Bearer ${token}` } });
+      setDietaryTags(res.data);
+    } catch (e) {
+      setDietaryTags([]);
+    }
+  };
+
   const handleSearch = () => {
     const q = search.trim().toLowerCase();
-    if (!q) {
-      setFiltered(recipes);
-      return;
-    }
-    setFiltered(
-      recipes.filter(r =>
+    let filteredRecipes = recipes;
+
+    if (q) {
+      filteredRecipes = filteredRecipes.filter(r =>
         r.title.toLowerCase().includes(q) ||
         (Array.isArray(r.ingredients)
           ? r.ingredients.some((ing: any) =>
               (typeof ing === 'string' ? ing : ing.ingredient?.name || '').toLowerCase().includes(q)
             )
           : false)
-      )
-    );
+      );
+    }
+
+    if (selectedTags.length > 0) {
+      filteredRecipes = recipes
+        .filter(r => {
+          if (!r.dietary_tags || !Array.isArray(r.dietary_tags)) return false;
+          const tagIds = r.dietary_tags.map((tag: any) => Number(typeof tag === 'object' ? tag.id : tag));
+          return selectedTags.some(tagId => tagIds.includes(Number(tagId)));
+        })
+        .sort((a, b) => {
+          const aTagIds = a.dietary_tags.map((tag: any) => Number(typeof tag === 'object' ? tag.id : tag));
+          const bTagIds = b.dietary_tags.map((tag: any) => Number(typeof tag === 'object' ? tag.id : tag));
+          const aCount = selectedTags.filter(tagId => aTagIds.includes(tagId)).length;
+          const bCount = selectedTags.filter(tagId => bTagIds.includes(tagId)).length;
+          return bCount - aCount; 
+        });
+    }
+
+    setFiltered(filteredRecipes);
   };
+
+  const toggleTag = (tagId: number) => {
+    setSelectedTags(prev => {
+      const newTags = prev.includes(tagId)
+        ? prev.filter(id => id !== tagId)
+        : [...prev, tagId];
+      return newTags;
+    });
+  };
+
+  useEffect(() => {
+    handleSearch();
+  }, [selectedTags]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background, padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
         <TextInput
-          style={[styles.searchBox, { backgroundColor: theme.card, color: theme.text, flex: 1 }]}
+          style={[
+            styles.searchBox,
+            { backgroundColor: theme.card, color: theme.text, flex: 1, marginBottom: 0 }
+          ]}
           placeholder="Search by recipe or ingredient..."
           placeholderTextColor={isDark ? '#bbb' : '#888'}
           value={search}
@@ -68,10 +113,49 @@ const RecipesScreen = () => {
           onSubmitEditing={handleSearch}
           returnKeyType="search"
         />
-        <TouchableOpacity onPress={handleSearch} style={{ marginLeft: 8, backgroundColor: theme.primary, borderRadius: 8, padding: 10 }}>
+        <TouchableOpacity
+          onPress={handleSearch}
+          style={{
+            marginLeft: 8,
+            backgroundColor: theme.primary,
+            borderRadius: 8,
+            paddingHorizontal: 18,
+            height: 44,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
           <Text style={{ color: '#fff', fontWeight: 'bold' }}>Search</Text>
         </TouchableOpacity>
       </View>
+
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: 16 }}
+      >
+        {dietaryTags.map(tag => (
+          <TouchableOpacity
+            key={tag.id}
+            onPress={() => toggleTag(tag.id)}
+            style={[
+              styles.tagButton,
+              { 
+                backgroundColor: selectedTags.includes(tag.id) ? theme.primary : theme.card,
+                borderColor: theme.primary
+              }
+            ]}
+          >
+            <Text style={{ 
+              color: selectedTags.includes(tag.id) ? '#fff' : theme.text,
+              fontWeight: '500'
+            }}>
+              {tag.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} />
       ) : (
@@ -85,6 +169,19 @@ const RecipesScreen = () => {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.recipeTitle, { color: theme.text }]}>{item.title}</Text>
                   <Text style={[styles.recipeDesc, { color: theme.text }]} numberOfLines={2}>{item.description || ''}</Text>
+                  {item.dietary_tags && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+                      {item.dietary_tags.map((tag: any) => {
+                        const tagId = Number(typeof tag === 'object' ? tag.id : tag);
+                        const tagObj = dietaryTags.find((t: any) => t.id === tagId);
+                        return tagObj ? (
+                          <View key={tagObj.id} style={[styles.tag, { backgroundColor: theme.primary + '20' }]}>
+                            <Text style={{ color: theme.primary, fontSize: 12 }}>{tagObj.name}</Text>
+                          </View>
+                        ) : null;
+                      })}
+                    </View>
+                  )}
                 </View>
               </View>
             </TouchableOpacity>
@@ -133,9 +230,10 @@ const RecipesScreen = () => {
 const styles = StyleSheet.create({
   searchBox: {
     borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
+    paddingHorizontal: 12,
+    height: 44,
     fontSize: 16,
+    marginBottom: 0,
   },
   recipeCard: {
     flexDirection: 'row',
@@ -165,6 +263,29 @@ const styles = StyleSheet.create({
   recipeDesc: {
     fontSize: 13,
     color: '#666',
+  },
+  tagButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 4,
+    borderWidth: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 32,
+  },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginRight: 4,
+    marginTop: 4,
+    minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 22,
   },
 });
 

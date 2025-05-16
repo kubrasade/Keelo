@@ -15,9 +15,16 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('access_token');
-    await AsyncStorage.removeItem('user_type');
-    navigation.replace('Login');
+    try {
+      await AsyncStorage.removeItem('access_token');
+      await AsyncStorage.removeItem('user_type');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to logout');
+    }
   };
 
   return (

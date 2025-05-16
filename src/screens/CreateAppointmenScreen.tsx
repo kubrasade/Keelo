@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, FlatList, Platform } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, FlatList } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_URL } from '../config/api';
 import { useTheme } from '../context/ThemeContext';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 type Client = {
   id: number;
@@ -25,8 +25,8 @@ type Matching = {
 const CreateAppointmentScreen: React.FC = () => {
   const [matchings, setMatchings] = useState<Matching[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [date, setDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [date, setDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [dietitianId, setDietitianId] = useState<number | null>(null);
@@ -74,7 +74,7 @@ const CreateAppointmentScreen: React.FC = () => {
         dietitian: dietitianId,
         date: date.toISOString().slice(0, 10),
       };
-      const response = await axios.post(
+      await axios.post(
         `${BASE_URL}/api/appointment/`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -121,14 +121,14 @@ const CreateAppointmentScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
-  const showDatePickerModal = () => {
-    setShowDatePicker(true);
+  const handleConfirm = (selectedDate: Date) => {
+    setShowDatePicker(false);
+    setDate(selectedDate);
   };
 
-  const onDateChange = (_: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) setDate(selectedDate);
-  };
+  const uniqueClients = Array.from(
+    new Map(matchings.map(m => [m.client.id, m.client])).values()
+  );
 
   if (loading) {
     return (
@@ -144,7 +144,7 @@ const CreateAppointmentScreen: React.FC = () => {
 
       <Text style={[styles.label, { color: theme.text }]}>Select Client</Text>
       <FlatList
-        data={matchings.map(m => m.client)}
+        data={uniqueClients}
         renderItem={renderClient}
         keyExtractor={item => item.id.toString()}
         horizontal
@@ -155,20 +155,25 @@ const CreateAppointmentScreen: React.FC = () => {
       <Text style={[styles.label, { color: theme.text }]}>Select Date</Text>
       <TouchableOpacity
         style={[styles.dateInput, { borderColor: theme.primary }]}
-        onPress={showDatePickerModal}
+        onPress={() => setShowDatePicker(true)}
       >
         <Text style={{ color: date ? theme.text : '#aaa' }}>
           {date ? date.toLocaleDateString() : 'Select Date'}
         </Text>
       </TouchableOpacity>
       {showDatePicker && (
-        <DateTimePicker
-          value={date || new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onDateChange}
-        />
+        <Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 16, marginBottom: 8, color: theme.text }}>
+          Tarih Seç
+        </Text>
       )}
+      <DateTimePickerModal
+        isVisible={showDatePicker}
+        mode="date"
+        onConfirm={handleConfirm}
+        onCancel={() => setShowDatePicker(false)}
+        textColor={theme.text}
+        pickerContainerStyleIOS={{ backgroundColor: theme.background }}
+      />
 
       <TouchableOpacity
         style={[

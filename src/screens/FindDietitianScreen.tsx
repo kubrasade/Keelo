@@ -84,7 +84,9 @@ const FindDietitianScreen: React.FC = () => {
     setSelectedSpec(spec);
     setExistingMatch(false);
     setModalVisible(false);
-    fetchDietitians(spec.id, search.trim());
+    setTimeout(() => {
+      fetchDietitians(spec.id, search.trim());
+    }, 100);
   };
 
   const handleDietitianPress = async (dietitian: Dietitian) => {
@@ -115,16 +117,19 @@ const FindDietitianScreen: React.FC = () => {
   const fetchAndStoreClientId = async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
-      const userEmail = await AsyncStorage.getItem('user_email');
-      const response = await axios.get(`${BASE_URL}/api/clients/`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const userRes = await axios.get(`${BASE_URL}/api/users/me/`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const client = response.data.find((c: any) => c.user.email === userEmail);
+      const userId = userRes.data.id;
+      const clientRes = await axios.get(`${BASE_URL}/api/clients/?user=${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const client = clientRes.data[0];
       if (client) {
         await AsyncStorage.setItem('client_id', client.id.toString());
         console.log('client_id set:', client.id);
       } else {
-        console.log('No client found for userEmail:', userEmail);
+        console.log('No client found for userId:', userId);
       }
     } catch (e) {
       console.log('fetchAndStoreClientId error:', e);
@@ -132,37 +137,23 @@ const FindDietitianScreen: React.FC = () => {
   };
 
   const handleMatchRequest = async () => {
-    if (!selectedDietitian) {
-      Alert.alert('Error', 'Please select a dietitian first.');
+    if (!selectedDietitian || !selectedSpec) {
+      Alert.alert('Error', 'Please select a dietitian and specialization.');
       return;
     }
-
     setMatchingLoading(true);
     try {
       const token = await AsyncStorage.getItem('access_token');
       const clientIdStr = await AsyncStorage.getItem('client_id');
-      console.log('clientIdStr:', clientIdStr);
       const client_id = clientIdStr ? Number(clientIdStr) : undefined;
       const dietitian_id = Number(selectedDietitian.id);
-      const specialization_id = selectedSpec?.id ? Number(selectedSpec.id) : undefined;
-
+      const specialization_id = Number(selectedSpec.id);
       if (!client_id || !dietitian_id || !specialization_id) {
         Alert.alert('Error', 'Required information is missing. Please try logging out and logging in again.');
         setMatchingLoading(false);
         return;
       }
-
-      const requestData = {
-        client_id,
-        dietitian_id,
-        specialization_id,
-      };
-
-      console.log('client_id:', client_id);
-      console.log('dietitian_id:', dietitian_id);
-      console.log('specialization_id:', specialization_id);
-      console.log('Sending match request:', requestData);
-
+      const requestData = { client_id, dietitian_id, specialization_id };
       const response = await axios.post(
         `${BASE_URL}/api/match/matchings/`,
         requestData,
@@ -176,7 +167,6 @@ const FindDietitianScreen: React.FC = () => {
           }
         }
       );
-
       if (response.status === 201) {
         setExistingMatch(true);
         Alert.alert('Success', 'Your match request has been sent!');
@@ -198,20 +188,17 @@ const FindDietitianScreen: React.FC = () => {
     const clientIdStr = await AsyncStorage.getItem('client_id');
     const client_id = clientIdStr ? parseInt(clientIdStr, 10) : undefined;
     if (!client_id) return;
-
     try {
       const response = await axios.get(
         `${BASE_URL}/api/match/matchings/?client_id=${client_id}&dietitian_id=${dietitianId}&specialization_id=${specializationId}&include_deleted=false`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log('MATCH RESPONSE:', response.data, Array.isArray(response.data), response.data.length);
       if (Array.isArray(response.data)) {
         setExistingMatch(response.data.length > 0);
       } else {
         setExistingMatch(false);
       }
     } catch (error) {
-      console.error('Error checking existing match:', error);
       setExistingMatch(false);
     }
   };
@@ -366,7 +353,7 @@ const FindDietitianScreen: React.FC = () => {
                 <TouchableOpacity
                   style={[styles.matchButton, { backgroundColor: existingMatch ? '#ccc' : theme.primary }]}
                   onPress={handleMatchRequest}
-                  disabled={matchingLoading || existingMatch}
+                  disabled={matchingLoading || existingMatch || !selectedDietitian || !selectedSpec}
                 >
                   <Text style={[styles.matchButtonText, { color: theme.background }]}>
                     {existingMatch
@@ -374,7 +361,6 @@ const FindDietitianScreen: React.FC = () => {
                       : (matchingLoading ? 'Sending...' : 'Send Match Request')}
                   </Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={styles.modalCancel}
                   onPress={() => {

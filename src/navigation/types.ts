@@ -12,7 +12,7 @@ export type RootStackParamList = {
   ReviewScreen: undefined;
   DietPlanScreen:undefined;
   ProgressScreen: undefined;
-  FindDietitianScreen:undefined;
+  FindDietitianScreen: { query: string };
   HealthMetricsScreen:undefined;
   SettingsScreen:undefined;
   ChatListScreen: undefined;

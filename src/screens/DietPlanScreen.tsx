@@ -5,6 +5,7 @@ import { BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { Calendar } from 'react-native-calendars';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type Recipe = {
   id: number;
@@ -13,6 +14,8 @@ type Recipe = {
   ingredients?: string | string[] | object;
   instructions?: string | string[] | object;
   description?: string | string[] | object;
+  meal_type: number;
+  meal_types?: number[];
 };
 
 type MealPlanItem = {
@@ -29,7 +32,8 @@ const mealTypeMap: { [key: number]: string } = {
   1: 'Breakfast',
   2: 'Lunch',
   3: 'Dinner',
-  4: 'Snack 1',
+  4: 'Snack ',
+  5: 'Dessert'
 };
 
 const dayNameMap: { [key: number]: string } = {
@@ -135,7 +139,7 @@ const DietPlanScreen: React.FC = () => {
 
   const handleAddMealPlan = async () => {
     if (!addDay || !addMealType || !addRecipeId || !addDate) {
-      Alert.alert('Uyarı', 'Lütfen tüm alanları doldurun.');
+      Alert.alert('Warning', 'Please fill in all fields.');
       return;
     }
     try {
@@ -153,7 +157,7 @@ const DietPlanScreen: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` }
         }
       );
-      Alert.alert('Başarılı', 'Meal plan başarıyla eklendi.');
+      Alert.alert('Success', 'Meal plan added successfully.');
       setAddModalVisible(false);
       setAddDay(new Date(addDate).getDay() === 0 ? 7 : new Date(addDate).getDay());
       setAddMealType(1);
@@ -161,7 +165,7 @@ const DietPlanScreen: React.FC = () => {
       setAddRecipeId(null);
       fetchMealPlans();
     } catch (error: any) {
-      Alert.alert('Hata', error?.response?.data?.detail || 'Meal plan eklenemedi.');
+      Alert.alert('Error', error?.response?.data?.detail || 'Failed to add meal plan.');
     }
   };
 
@@ -294,7 +298,7 @@ const DietPlanScreen: React.FC = () => {
                 style={styles.productCard}
               >
                 <TouchableOpacity style={styles.deleteIcon} onPress={() => handleDeleteMealPlan(meal.id)}>
-                  <Text style={styles.deleteIconText}>✕</Text>
+                  <Ionicons name="trash" size={20} color="#fff" />
                 </TouchableOpacity>
                 <Image
                   source={meal.recipe && meal.recipe.image ? { uri: meal.recipe.image } : require('../../assets/images/login.png')}
@@ -307,8 +311,12 @@ const DietPlanScreen: React.FC = () => {
                 {meal.notes ? (
                   <Text style={styles.productDesc}>Note: {meal.notes}</Text>
                 ) : null}
-                <TouchableOpacity style={styles.productButton} onPress={() => meal.recipe && handleRecipeSelect(meal.recipe.id)}>
-                  <Text style={styles.productButtonText}>View Details</Text>
+                <TouchableOpacity
+                  style={styles.productButton}
+                  disabled={!meal.recipe}
+                  onPress={() => meal.recipe && handleRecipeSelect(meal.recipe.id)}
+                >
+                  <Text style={[styles.productButtonText, !meal.recipe && { opacity: 0.5 }]}>View Details</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -328,23 +336,26 @@ const DietPlanScreen: React.FC = () => {
               </TouchableOpacity>
               {selectedRecipe && (
                 <ScrollView>
-                  <Image source={selectedRecipe.image ? { uri: selectedRecipe.image } : require('../../assets/images/login.png')} style={styles.detailImage} />
+                  <Image
+                    source={selectedRecipe.image ? { uri: selectedRecipe.image } : require('../../assets/images/login.png')}
+                    style={styles.detailImage}
+                  />
                   <Text style={styles.detailTitle}>{selectedRecipe.title}</Text>
                   {selectedRecipe.description && (
                     <View style={{ marginBottom: 10 }}>
-                      <Text style={{ fontWeight: 'bold', color: theme.primary, marginBottom: 2 }}>Description:</Text>
+                      <Text style={styles.detailSection}>Açıklama:</Text>
                       <Text style={{ color: theme.text }}>{toDisplayString(selectedRecipe.description)}</Text>
                     </View>
                   )}
                   {selectedRecipe.ingredients && (
                     <View style={{ marginBottom: 10 }}>
-                      <Text style={{ fontWeight: 'bold', color: theme.primary, marginBottom: 2 }}>Ingredients:</Text>
+                      <Text style={styles.detailSection}>Malzemeler:</Text>
                       <Text style={{ color: theme.text }}>{toDisplayString(selectedRecipe.ingredients)}</Text>
                     </View>
                   )}
                   {selectedRecipe.instructions && (
                     <View style={{ marginBottom: 10 }}>
-                      <Text style={{ fontWeight: 'bold', color: theme.primary, marginBottom: 2 }}>Instructions:</Text>
+                      <Text style={styles.detailSection}>Talimatlar:</Text>
                       <Text style={{ color: theme.text }}>{toDisplayString(selectedRecipe.instructions)}</Text>
                     </View>
                   )}
@@ -427,20 +438,27 @@ const DietPlanScreen: React.FC = () => {
             />
             <Text style={{ color: theme.text }}>Recipe</Text>
             <ScrollView style={{ maxHeight: 120 }}>
-              {recipes.map(r => (
-                <TouchableOpacity
-                  key={r.id}
-                  style={{
-                    padding: 10,
-                    backgroundColor: addRecipeId === r.id ? theme.primary : theme.background,
-                    borderRadius: 8,
-                    marginBottom: 5
-                  }}
-                  onPress={() => setAddRecipeId(r.id)}
-                >
-                  <Text style={{ color: addRecipeId === r.id ? '#fff' : theme.text }}>{r.title}</Text>
-                </TouchableOpacity>
-              ))}
+              {recipes
+                .filter(r => {
+                  if (Array.isArray(r.meal_types)) {
+                    return r.meal_types.includes(addMealType);
+                  }
+                  return r.meal_type === addMealType;
+                })
+                .map(r => (
+                  <TouchableOpacity
+                    key={r.id}
+                    style={{
+                      padding: 10,
+                      backgroundColor: addRecipeId === r.id ? theme.primary : theme.background,
+                      borderRadius: 8,
+                      marginBottom: 5
+                    }}
+                    onPress={() => setAddRecipeId(r.id)}
+                  >
+                    <Text style={{ color: addRecipeId === r.id ? '#fff' : theme.text }}>{r.title}</Text>
+                  </TouchableOpacity>
+                ))}
             </ScrollView>
             <View style={styles.modalButtons}>
               <TouchableOpacity

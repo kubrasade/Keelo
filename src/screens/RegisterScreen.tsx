@@ -23,20 +23,27 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [userType, setUserType] = useState<'1' | '2' | null>(null); 
-
+  const [licenseNumber, setLicenseNumber] = useState('');
   const [showOptions, setShowOptions] = useState(false); 
 
   const handleRegister = async () => {
+    if (userType === '1' && !licenseNumber.trim()) {
+      Alert.alert('Error', 'Please enter your license number.');
+      return;
+    }
     try {
-      const response = await axios.post(`${BASE_URL}/api/auth/register/`, {
+      const payload: any = {
         email,
         password,
         password2: passwordConfirm,
         first_name: firstName, 
         last_name: lastName, 
         user_type: userType,  
-      });
-
+      };
+      if (userType === '1') {
+        payload.license_number = licenseNumber;
+      }
+      const response = await axios.post(`${BASE_URL}/api/auth/register/`, payload);
       Alert.alert('Success', 'Registration successful! You can check your e-mail and log in.');
       navigation.navigate('Login');
     } catch (error: any) {
@@ -128,6 +135,16 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.optionText}>Client</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {userType === '1' && (
+        <TextInput
+          placeholder="License Number"
+          placeholderTextColor="#999"
+          style={styles.input}
+          value={licenseNumber}
+          onChangeText={setLicenseNumber}
+        />
       )}
 
       <TouchableOpacity style={styles.button} onPress={handleRegister}>

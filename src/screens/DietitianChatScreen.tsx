@@ -157,10 +157,18 @@ const DietitianChatScreen: React.FC<Props> = ({ route, navigation }) => {
       if (input.trim()) formData.append('content', input);
       formData.append('chat_room', String(roomId));
       if (selectedFile) {
-        formData.append('file', selectedFile as any);
+        formData.append('file', {
+          uri: selectedFile.uri,
+          type: selectedFile.type || 'application/octet-stream',
+          name: selectedFile.name || 'file',
+        } as any);
       }
       if (selectedImage) {
-        formData.append('image', selectedImage as any);
+        formData.append('image', {
+          uri: selectedImage.uri,
+          type: selectedImage.type || 'image/jpeg',
+          name: selectedImage.fileName || 'photo.jpg',
+        } as any);
       }
       
       console.log('Sending message to room:', roomId);
@@ -169,8 +177,7 @@ const DietitianChatScreen: React.FC<Props> = ({ route, navigation }) => {
         formData,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`
           },
         }
       );
@@ -180,7 +187,6 @@ const DietitianChatScreen: React.FC<Props> = ({ route, navigation }) => {
       setSelectedFile(null);
       setSelectedImage(null);
       
-      // No need to fetch messages after sending since we'll receive it via WebSocket
     } catch (error: any) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message: ' + (error.response ? JSON.stringify(error.response.data) : error.message));
@@ -277,7 +283,6 @@ const DietitianChatScreen: React.FC<Props> = ({ route, navigation }) => {
     });
   };
 
-  // Diyetisyen için örnek: Aynı client id'ye sahip room'ları tekilleştir
   const uniqueRooms = rooms.filter(
     (room, index, self) =>
       index === self.findIndex((r) => r.client.id === room.client.id)
@@ -286,7 +291,7 @@ const DietitianChatScreen: React.FC<Props> = ({ route, navigation }) => {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
       {userId !== null && (
@@ -294,8 +299,9 @@ const DietitianChatScreen: React.FC<Props> = ({ route, navigation }) => {
           ref={flatListRef}
           data={messages}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
           contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
       )}
       <View style={styles.inputRow}>
