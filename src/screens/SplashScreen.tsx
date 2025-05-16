@@ -50,7 +50,7 @@ const SplashScreen = ({ navigation }: any) => {
     startAnimation();
     setTimeout(() => {
         navigation.navigate('Onboarding');
-        }, 3000); 
+        }, 1000); 
   }, []);
 
   return (

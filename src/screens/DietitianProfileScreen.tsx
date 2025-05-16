@@ -7,6 +7,7 @@ import { BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ModalSelector from 'react-native-modal-selector';
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
+import { useTheme } from '../context/ThemeContext';
 
 type UserData = {
   first_name?: string;
@@ -21,6 +22,7 @@ type Specialization = {
 type DietitianProfile = {
   id?: number;
   user?: number;
+  license_number?: number;
   bio?: string;
   education?: string;
   experience_years?: number;
@@ -52,6 +54,8 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<UserData>({});
+  const { theme, isDark } = useTheme();
+  const [originalProfile, setOriginalProfile] = useState<DietitianProfile>({});
   
 
   useEffect(() => {
@@ -79,29 +83,58 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const token = await AsyncStorage.getItem('access_token');
       const userResponse = await axios.get(`${BASE_URL}/api/users/me/`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       const userId = userResponse.data.id;
-  
-      const profileResponse = await axios.get(`${BASE_URL}/api/dietitians/?user=${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const profileResponse = await axios.get(`${BASE_URL}/api/dietitians/?dietitian_id=${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-      const dietitianProfile = profileResponse.data[0]; 
-  
-      if (!dietitianProfile) {
+      let dietitianProfile = profileResponse.data[0];
+      if (dietitianProfile) {
+        if (dietitianProfile.availability && typeof dietitianProfile.availability === 'object') {
+          const av = dietitianProfile.availability;
+          if (av.start && av.end) {
+            dietitianProfile.availability = `${av.start} - ${av.end}`;
+          }
+        } else if (typeof dietitianProfile.availability === 'string') {
+          try {
+            const avObj = JSON.parse(dietitianProfile.availability);
+            if (avObj.start && avObj.end) {
+              dietitianProfile.availability = `${avObj.start} - ${avObj.end}`;
+            }
+          } catch {}
+        }
+        if (Array.isArray(dietitianProfile.social_links)) {
+          dietitianProfile.social_links = dietitianProfile.social_links.join(', ');
+        } else if (typeof dietitianProfile.social_links === 'string') {
+          try {
+            const linksArr = JSON.parse(dietitianProfile.social_links);
+            if (Array.isArray(linksArr)) {
+              dietitianProfile.social_links = linksArr.join(', ');
+            }
+          } catch {}
+        }
+        if (Array.isArray(dietitianProfile.specializations_ids)) {
+          dietitianProfile.specializations_ids = dietitianProfile.specializations_ids.map(Number);
+        } else if (Array.isArray(dietitianProfile.specializations)) {
+          dietitianProfile.specializations_ids = dietitianProfile.specializations.map((s: any) => Number(s.id));
+        } else {
+          dietitianProfile.specializations_ids = [];
+        }
+        setProfile(dietitianProfile);
+        setOriginalProfile(dietitianProfile);
+      } else {
         Alert.alert('Error', 'Dietitian profile not found!');
-        setLoading(false);
-        return;
       }
-  
-      setProfile({
-        ...dietitianProfile,
-        specializations_ids: dietitianProfile.specializations?.map((s: Specialization) => s.id) || [],
-      });
     } catch (error) {
+      console.error('Error fetching profile:', error);
       Alert.alert('Error', 'Failed to fetch profile');
     } finally {
-      setLoading(false);
+      setLoading(false); 
     }
   };
 
@@ -127,16 +160,40 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         setLoading(false);
         return;
       }
-  
-      const availability = typeof profile.availability === 'string' ? profile.availability.split(' - ') : [];
-      let socialLinks = profile.social_links && typeof profile.social_links === 'string' ? profile.social_links.split(',') : [];
-  
       let dataToSend: any;
       let headers: any = { Authorization: `Bearer ${token}` };
-  
-      if (profile.profile_picture && typeof profile.profile_picture !== 'string') {
+      const changedFields: any = {};
+      Object.entries(profile).forEach(([key, value]) => {
+        if (key === 'profile_picture' || key === 'availability' || key === 'social_links') {
+          return;
+        }
+        if (originalProfile[key as keyof DietitianProfile] !== value) {
+          changedFields[key] = value;
+        }
+      });
+      if (profile.profile_picture !== originalProfile.profile_picture) {
+        changedFields.profile_picture = profile.profile_picture;
+      }
+      if (profile.availability !== originalProfile.availability) {
+        if (profile.availability && typeof profile.availability === 'string' && profile.availability.includes(' - ')) {
+          const [start, end] = profile.availability.split(' - ');
+          changedFields.availability = JSON.stringify({ start: start.trim(), end: end.trim() });
+        } else if (profile.availability) {
+          changedFields.availability = JSON.stringify({ start: profile.availability, end: profile.availability });
+        }
+      }
+      if (profile.social_links !== originalProfile.social_links) {
+        if (profile.social_links && typeof profile.social_links === 'string') {
+          const links = profile.social_links.split(',').map(link => link.trim()).filter(link => link);
+          changedFields.social_links = JSON.stringify(links);
+        }
+      }
+      if (changedFields.specializations_ids) {
+        changedFields.specializations_ids = (changedFields.specializations_ids as any[]).map(Number);
+      }
+      if (changedFields.profile_picture && typeof changedFields.profile_picture !== 'string') {
         dataToSend = new FormData();
-        Object.entries(profile).forEach(([key, value]) => {
+        Object.entries(changedFields).forEach(([key, value]) => {
           if (key === 'profile_picture' && value && typeof value !== 'string') {
             const asset = value as Asset;
             if (asset.uri) {
@@ -146,29 +203,24 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
                 name: asset.fileName || 'profile.jpg',
               } as any);
             }
-          } else if (key === 'specializations_ids' && Array.isArray(value)) {
-            value.forEach((spec: Specialization | number) => {
-              const id = typeof spec === 'number' ? spec : spec.id;
-              dataToSend.append('specializations_ids', String(id));
-            });
-          } else if (value !== undefined && value !== null) {
-            if (key === 'availability' && availability.length === 2) {
-              dataToSend.append(key, JSON.stringify({ start: availability[0], end: availability[1] }));
-            } else if (key === 'social_links' && socialLinks.length > 0) {
-              dataToSend.append(key, JSON.stringify(socialLinks));
-            } else {
-              dataToSend.append(key, String(value));
-            }
+          } else {
+            dataToSend.append(key, String(value));
           }
         });
         headers['Content-Type'] = 'multipart/form-data';
       } else {
-        dataToSend = { ...profile };
+        dataToSend = changedFields;
         headers['Content-Type'] = 'application/json';
       }
-  
+      if (Object.keys(dataToSend).length === 0) {
+        Alert.alert('No changes', 'No fields were changed.');
+        setLoading(false);
+        return;
+      }
+      if (profile.specializations_ids) {
+        profile.specializations_ids = (profile.specializations_ids as any[]).map(Number);
+      }
       await axios.patch(`${BASE_URL}/api/dietitians/${profile.id}/`, dataToSend, { headers });
-  
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully');
       navigation.goBack();
@@ -204,11 +256,11 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (loading) return <ActivityIndicator style={{ flex: 1 }} color={theme.primary} />;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.profileHeader}>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }}>
+      <View style={[styles.profileHeader, { backgroundColor: theme.card }]}>
         {profile.profile_picture && typeof profile.profile_picture === 'string' && (
           <Image
             source={{ uri: profile.profile_picture }}
@@ -221,19 +273,19 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
             style={{ width: 100, height: 100, borderRadius: 50, marginTop: 10 }}
           />
         )}
-        <Text style={styles.name}>
-            {userData.first_name && userData.last_name
-              ? `${userData.first_name} ${userData.last_name}`
-              : 'User'}
-          </Text>
+        <Text style={[styles.name, { color: theme.text }]}>
+          {userData.first_name && userData.last_name
+            ? `${userData.first_name} ${userData.last_name}`
+            : 'User'}
+        </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
+      <View style={[styles.section, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>Personal Information</Text>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Biography</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.bio || ''}
             onChangeText={(text) => setProfile({ ...profile, bio: text })}
             editable={isEditing}
@@ -241,9 +293,22 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputGroup}>
+          <Text style={styles.label}>License Number</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
+            value={profile.license_number ? String(profile.license_number) : ''}
+            onChangeText={(text) => {
+              const numValue = text ? parseInt(text) : undefined;
+              setProfile({ ...profile, license_number: numValue });
+            }}
+            editable={isEditing}
+            keyboardType="numeric"
+          />
+        </View>
+        <View style={styles.inputGroup}>
           <Text style={styles.label}>Education</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.education || ''}
             onChangeText={(text) => setProfile({ ...profile, education: text })}
             editable={isEditing}
@@ -252,7 +317,7 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Experience (Years)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.experience_years !== undefined ? String(profile.experience_years) : ''}
             onChangeText={(text) => setProfile({ ...profile, experience_years: parseInt(text) || 0 })}
             editable={isEditing}
@@ -267,13 +332,15 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
             onChange={(option) => setProfile({ ...profile, gender: option.key })}
             disabled={!isEditing}
           >
-            <Text style={styles.input}>{genderOptions.find(opt => opt.key === profile.gender)?.label || ''}</Text>
+            <Text style={[styles.input, { color: theme.text }]}>
+              {genderOptions.find(opt => opt.key === profile.gender)?.label || ''}
+            </Text>
           </ModalSelector>
         </View>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Birth Date</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.birth_date || ''}
             onChangeText={(text) => setProfile({ ...profile, birth_date: text })}
             editable={isEditing}
@@ -284,24 +351,25 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Specializations</Text>
+      <View style={[styles.section, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>Specializations</Text>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Specializations</Text>
           <ModalSelector
             data={specializations.map(s => ({ key: s.id, label: s.name }))}
             initValue="Select Specialization"
             onChange={(option) => {
-              if (!profile.specializations_ids?.includes(option.key)) {
+              const id = Number(option.key);
+              if (!profile.specializations_ids?.includes(id)) {
                 setProfile({
                   ...profile,
-                  specializations_ids: [...(profile.specializations_ids || []), option.key],
+                  specializations_ids: [...(profile.specializations_ids || []), id],
                 });
               }
             }}
             disabled={!isEditing}
           >
-            <Text style={styles.input}>
+            <Text style={[styles.input, { color: theme.text }]}>
               {(profile.specializations_ids || [])
                 .map(id => specializations.find(s => s.id === id)?.name)
                 .filter(Boolean)
@@ -315,7 +383,10 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={id}
-                  style={{ backgroundColor: '#eee', borderRadius: 12, padding: 6, margin: 2 }}
+                  style={[
+                    { backgroundColor: '#eee', borderRadius: 12, padding: 6, margin: 2 },
+                    { backgroundColor: isDark ? '#333' : '#fff' }
+                  ]}
                   onPress={() =>
                     setProfile({
                       ...profile,
@@ -324,7 +395,10 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
                   }
                   disabled={!isEditing}
                 >
-                  <Text style={{ color: '#2E7D32' }}>{spec.name} ✕</Text>
+                  <Text style={[
+                    { color: '#2E7D32' },
+                    { color: isDark ? '#ccc' : '#2E7D32' }
+                  ]}>{spec.name} ✕</Text>
                 </TouchableOpacity>
               );
             })}
@@ -332,12 +406,12 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Other Information</Text>
+      <View style={[styles.section, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>Other Information</Text>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Certificate Information</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.certificate_info || ''}
             onChangeText={(text) => setProfile({ ...profile, certificate_info: text })}
             editable={isEditing}
@@ -346,7 +420,7 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Consultation Fee</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.consultation_fee !== undefined ? String(profile.consultation_fee) : ''}
             onChangeText={(text) => setProfile({ ...profile, consultation_fee: parseInt(text) || 0 })}
             editable={isEditing}
@@ -356,7 +430,7 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Availability</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.availability || ''}
             onChangeText={(text) => setProfile({ ...profile, availability: text })}
             editable={isEditing}
@@ -365,7 +439,7 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Website</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.website || ''}
             onChangeText={(text) => setProfile({ ...profile, website: text })}
             editable={isEditing}
@@ -374,7 +448,7 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Social Media Links</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: isDark ? '#23262F' : '#fff', color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.social_links || ''}
             onChangeText={(text) => setProfile({ ...profile, social_links: text })}
             editable={isEditing}
@@ -385,15 +459,25 @@ const DietitianProfileScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.buttonContainer}>
         {isEditing ? (
           <>
-            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave} disabled={loading}>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton, { backgroundColor: theme.primary }]}
+              onPress={handleSave}
+              disabled={loading}
+            >
               <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={() => setIsEditing(false)}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton, { backgroundColor: isDark ? '#666' : '#bbb' }]}
+              onPress={() => setIsEditing(false)}
+            >
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity style={styles.button} onPress={() => setIsEditing(true)}>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: theme.primary }]}
+            onPress={() => setIsEditing(true)}
+          >
             <Text style={styles.buttonText}>Edit</Text>
           </TouchableOpacity>
         )}

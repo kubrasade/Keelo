@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
+
 type MenuProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -14,10 +15,11 @@ const Menu: React.FC<MenuProps> = ({ isOpen, onClose, onLogout, navigation }) =>
 
   const menuItems = [
     { title: 'Profile', screen: 'DietitianProfileScreen' },
-    { title: 'Diet Plan', screen: 'DietPlan' },
-    { title: 'Progress', screen: 'Progress' },
-    { title: 'Find Client', screen: 'FindClient' },
-    { title: 'Settings', screen: 'Settings' },
+    { title: 'Match Request', screen: 'MatchScreen' },
+    { title: 'Appointment', screen: 'AppointmentScreen' },
+    { title: 'Diet Plan', screen: 'DietitianDietPlanScreen' },
+    { title: 'Progress', screen: 'DietitianProgressScreen' },
+    { title: 'Settings', screen: 'DietitianSettingsScreen' },
   ];
 
   const handleNavigation = (screen: string) => {

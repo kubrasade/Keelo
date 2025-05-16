@@ -5,12 +5,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_URL } from '../config/api';
 import { NativeStackScreenProps } from '@react-navigation/native-stack'; 
 import { RootStackParamList } from '../navigation/types'; 
+import { useTheme } from '../context/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { theme, isDark } = useTheme();
 
   const handleLogin = async () => {
     try {
@@ -35,21 +37,21 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.keeloText}>Keelo</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.keeloText, { color: theme.primary }]}>Keelo</Text>
       
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: theme.card, color: theme.text }]}
         placeholder="Email"
-        placeholderTextColor="#999"
+        placeholderTextColor={isDark ? '#bbb' : '#999'}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
       />
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: theme.card, color: theme.text }]}
         placeholder="Password"
-        placeholderTextColor="#999"
+        placeholderTextColor={isDark ? '#bbb' : '#999'}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -57,16 +59,16 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       
       <View style={styles.forgotPasswordContainer}>
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.link}>Forgot Password?</Text>
+          <Text style={[styles.link, { color: theme.text }]}>Forgot Password?</Text>
         </TouchableOpacity>
       </View>
           
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+      <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary }]} onPress={handleLogin}>
         <Text style={styles.buttonText}>Log In</Text>
       </TouchableOpacity>
       
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.link}>Don't have an account? Register here</Text>
+        <Text style={[styles.link, { color: theme.text }]}>Don't have an account? Register here</Text>
       </TouchableOpacity>
     </View>
   );
@@ -77,29 +79,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
     padding: 24,
   },
   keeloText: {
     fontSize: 40,
     fontWeight: '700',
-    color: '#000',
     marginBottom: 30,
   },
   input: {
     width: '90%',
     height: 50,
-    backgroundColor: '#d3d3d3',
     marginBottom: 20,
     paddingLeft: 15,
     borderRadius: 10,
     fontSize: 16,
-    color: '#333',
   },
   button: {
     width: '70%',
     paddingVertical: 15,
-    backgroundColor: '#2E7D32',
     borderRadius: 25,
     alignItems: 'center',
     marginBottom: 20,
@@ -110,7 +107,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   link: {
-    color: '#000',
     fontSize: 14,
     marginVertical: 5,
     textDecorationLine: 'underline',

@@ -14,6 +14,7 @@ import { BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ModalSelector from 'react-native-modal-selector';
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
+import { useTheme } from '../context/ThemeContext';
 
 type UserData = {
   first_name?: string;
@@ -60,6 +61,7 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState<UserData>({});
+  const { theme, isDark } = useTheme();
 
   useEffect(() => {
     fetchProfile();
@@ -185,8 +187,8 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.profileHeader}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.profileHeader, { backgroundColor: theme.card }]}>
         {profile.profile_picture && typeof profile.profile_picture === 'string' && (
           <Image
             source={{ uri: profile.profile_picture }}
@@ -199,55 +201,55 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
             style={{ width: 100, height: 100, borderRadius: 50, marginTop: 10 }}
           />
         )}
-      <Text style={styles.name}>
+        <Text style={[styles.name, { color: theme.text }]}>
           {userData.first_name && userData.last_name
             ? `${userData.first_name} ${userData.last_name}`
             : 'User'}
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
+      <View style={[styles.section, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>Personal Information</Text>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Birth Place</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Birth Place</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.birth_place || ''}
             onChangeText={(text) => setProfile({ ...profile, birth_place: text })}
             editable={isEditing}
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Gender</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Gender</Text>
           <ModalSelector
             data={genderOptions}
             initValue={genderOptions.find(opt => opt.key === profile.gender)?.label || ''}
-            onChange={(option) => setProfile({ ...profile, gender: option.key })}
+            onChange={(option: { key: number; label: string }) => setProfile({ ...profile, gender: option.key })}
             disabled={!isEditing}
           >
-            <Text style={styles.input}>{genderOptions.find(opt => opt.key === profile.gender)?.label || ''}</Text>
+            <Text style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}>{genderOptions.find(opt => opt.key === profile.gender)?.label || ''}</Text>
           </ModalSelector>
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Birth Date</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Birth Date</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.birth_date || ''}
             onChangeText={(text) => setProfile({ ...profile, birth_date: text })}
             editable={isEditing}
           />
         </View>
-        <TouchableOpacity onPress={handleImagePick} style={styles.button}>
-          <Text style={styles.buttonText}>Pick Profile Picture</Text>
+        <TouchableOpacity onPress={handleImagePick} style={[styles.button, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.buttonText, { color: theme.background }]}>Pick Profile Picture</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Health Information</Text>
+      <View style={[styles.section, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>Health Information</Text>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Height (cm)</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Height (cm)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.height !== undefined ? String(profile.height) : ''}
             onChangeText={(text) => setProfile({ ...profile, height: parseInt(text) || 0 })}
             editable={isEditing}
@@ -255,9 +257,9 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Weight (kg)</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Weight (kg)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.weight || ''}
             onChangeText={(text) => setProfile({ ...profile, weight: text })}
             editable={isEditing}
@@ -265,9 +267,9 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Target Weight (kg)</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Target Weight (kg)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.target_weight || ''}
             onChangeText={(text) => setProfile({ ...profile, target_weight: text })}
             editable={isEditing}
@@ -275,9 +277,9 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Health Conditions</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Health Conditions</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.health_conditions || ''}
             onChangeText={(text) => setProfile({ ...profile, health_conditions: text })}
             editable={isEditing}
@@ -285,12 +287,12 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Additional Information</Text>
+      <View style={[styles.section, { backgroundColor: theme.card }]}>
+        <Text style={[styles.sectionTitle, { color: theme.primary }]}>Additional Information</Text>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Allergies</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Allergies</Text>
           <TextInput
-            style={[styles.input, styles.multilineInput]}
+            style={[styles.input, styles.multilineInput, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.allergies || ''}
             onChangeText={(text) => setProfile({ ...profile, allergies: text })}
             editable={isEditing}
@@ -298,9 +300,9 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Medications</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Medications</Text>
           <TextInput
-            style={[styles.input, styles.multilineInput]}
+            style={[styles.input, styles.multilineInput, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.medications || ''}
             onChangeText={(text) => setProfile({ ...profile, medications: text })}
             editable={isEditing}
@@ -308,9 +310,9 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Lifestyle</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Lifestyle</Text>
           <TextInput
-            style={[styles.input, styles.multilineInput]}
+            style={[styles.input, styles.multilineInput, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.lifestyle || ''}
             onChangeText={(text) => setProfile({ ...profile, lifestyle: text })}
             editable={isEditing}
@@ -318,20 +320,20 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Fitness Level</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Fitness Level</Text>
           <ModalSelector
             data={fitnessOptions}
             initValue={fitnessOptions.find(opt => opt.key === profile.fitness_level)?.label || ''}
-            onChange={(option) => setProfile({ ...profile, fitness_level: option.key })}
+            onChange={(option: { key: number; label: string }) => setProfile({ ...profile, fitness_level: option.key })}
             disabled={!isEditing}
           >
-            <Text style={styles.input}>{fitnessOptions.find(opt => opt.key === profile.fitness_level)?.label || ''}</Text>
+            <Text style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}>{fitnessOptions.find(opt => opt.key === profile.fitness_level)?.label || ''}</Text>
           </ModalSelector>
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Dietary Preferences</Text>
+          <Text style={[styles.label, { color: theme.text } ]}>Dietary Preferences</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: isDark ? '#333' : '#ddd' }]}
             value={profile.dietary_preferences || ''}
             onChangeText={(text) => setProfile({ ...profile, dietary_preferences: text })}
             editable={isEditing}
@@ -342,16 +344,16 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.buttonContainer}>
         {isEditing ? (
           <>
-            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave} disabled={loading}>
-              <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Save'}</Text>
+            <TouchableOpacity style={[styles.button, styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSave} disabled={loading}>
+              <Text style={[styles.buttonText, { color: theme.background }]}>{loading ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={() => setIsEditing(false)}>
+            <TouchableOpacity style={[styles.button, styles.cancelButton, { backgroundColor: isDark ? '#444' : '#666' }]} onPress={() => setIsEditing(false)}>
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity style={styles.button} onPress={() => setIsEditing(true)}>
-            <Text style={styles.buttonText}>Edit</Text>
+          <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary }]} onPress={() => setIsEditing(true)}>
+            <Text style={[styles.buttonText, { color: theme.background }]}>Edit</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -362,23 +364,19 @@ const UserProfileScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
     padding: 20,  
   },
   profileHeader: {
     alignItems: 'center',
     paddingVertical: 20,
-    backgroundColor: '#fff',
     marginBottom: 20,
     borderRadius: 10,  
   },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
   },
   section: {
-    backgroundColor: '#fff',
     padding: 20,
     marginBottom: 20,
     borderRadius: 10,
@@ -391,7 +389,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2E7D32',  
     marginBottom: 15,
   },
   inputGroup: {
@@ -399,7 +396,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 5,
   },
   input: {
@@ -423,7 +419,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,  
   },
   button: {
-    backgroundColor: '#2E7D32',
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 8,

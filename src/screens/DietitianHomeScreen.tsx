@@ -7,6 +7,8 @@ import Menu from '../components/DietitianMenu';
 import axios from 'axios';
 import { BASE_URL } from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
+import { Calendar } from 'react-native-calendars';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'DietitianHomeScreen'>;
@@ -17,6 +19,17 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
   const [userData, setUserData] = useState<any>(null);
   const [dietitianProfile, setDietitianProfile] = useState<any>(null);
   const [initials, setInitials] = useState<string>('');
+  const { theme, isDark } = useTheme();
+  const [clients, setClients] = useState<any[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [markedDates, setMarkedDates] = useState<any>({});
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [appointmentsForDay, setAppointmentsForDay] = useState<any[]>([]);
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
+  const [statisticsModalVisible, setStatisticsModalVisible] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -24,6 +37,9 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
 
   useEffect(() => {
     fetchUserData();
+    fetchClients();
+    fetchAppointments();
+    fetchReviewAndMatchCounts();
   }, []);
 
   const fetchUserData = async () => {
@@ -50,6 +66,70 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const fetchClients = async () => {
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      const res = await axios.get(`${BASE_URL}/api/match/matchings/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const clientList = res.data.map((match: any) => match.client);
+      const uniqueClients = clientList.filter(
+        (client: any, index: number, self: any[]) =>
+          index === self.findIndex((c) => c.id === client.id)
+      );
+      setClients(uniqueClients);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    }
+  };
+
+  const fetchAppointments = async () => {
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      const res = await axios.get(`${BASE_URL}/api/appointment/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAppointments(res.data);
+      const marks: any = {};
+      res.data.forEach((appt: any) => {
+        const date = appt.date?.split('T')[0];
+        if (date) {
+          marks[date] = {
+            marked: true,
+            dotColor: '#43e97b',
+            selected: false,
+          };
+        }
+      });
+      setMarkedDates(marks);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+    }
+  };
+
+  const getCount = (data: any) => {
+    if (Array.isArray(data)) return data.length;
+    if (data && Array.isArray(data.results)) return data.results.length;
+    return 0;
+  };
+
+  const fetchReviewAndMatchCounts = async () => {
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      const matchRes = await axios.get(`${BASE_URL}/api/match/matchings/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMatchCount(getCount(matchRes.data));
+      const reviewRes = await axios.get(`${BASE_URL}/api/match/reviews/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setReviewCount(getCount(reviewRes.data));
+    } catch (error) {
+      setMatchCount(0);
+      setReviewCount(0);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const token = await AsyncStorage.getItem('access_token');
@@ -68,100 +148,206 @@ const DietitianHomeScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const filteredClients = clients.filter(client => {
+    const fullName = `${client.user.first_name} ${client.user.last_name}`.toLowerCase();
+    return fullName.includes(searchText.toLowerCase());
+  });
+
+  const handleDayPress = (day: any) => {
+    setSelectedDate(day.dateString);
+    const appts = appointments.filter((appt: any) => appt.date?.startsWith(day.dateString));
+    setAppointmentsForDay(appts);
+  };
+
+  const ExploreCard = ({ image, title, desc, buttonText, onPress }: { image: any, title: string, desc: string, buttonText: string, onPress: () => void }) => (
+    <View style={styles.productCard}>
+      <Image source={image} style={styles.productImage} />
+      <Text style={styles.productTitle}>{title}</Text>
+      <Text style={styles.productDesc}>{desc}</Text>
+      <TouchableOpacity style={styles.productButton} onPress={onPress} activeOpacity={0.85}>
+        <Text style={styles.productButtonText}>{buttonText}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Keelo Dietitian</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+      <View style={[styles.headerRow, { backgroundColor: theme.card }]}>
+        <Text style={[styles.headerTitle, { color: theme.primary }]}>Keelo Dietitian</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={{ marginRight: 10 }}>
-            <Ionicons name="mail-outline" size={22} color="#222" />
+          <TouchableOpacity style={{ marginRight: 10 }} onPress={() => navigation.navigate('DietitianChatListScreen')}>
+            <Ionicons name="mail-outline" size={22} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={toggleMenu} style={styles.profileCircle}>
-            <Text style={styles.profileInitials}>{initials}</Text>
+          <TouchableOpacity onPress={toggleMenu} style={[styles.profileCircle, { backgroundColor: theme.card }]}>
+            <Text style={[styles.profileInitials, { color: theme.text }]}>{initials}</Text>
           </TouchableOpacity>
         </View>
       </View>
-      <View style={styles.searchBoxWrapper}>
-        <Ionicons name="search" size={18} color="#888" style={{ marginLeft: 10 }} />
+
+      <View style={[styles.searchBoxWrapper, { backgroundColor: isDark ? '#23262F' : '#f3f3f3' }]}>
+        <Ionicons name="search" size={18} color={theme.text} style={{ marginLeft: 10 }} />
         <TextInput
-          style={styles.searchBox}
-          placeholder="Danışan ara..."
-          placeholderTextColor="#888"
+          style={[styles.searchBox, { color: theme.text }]}
+          placeholder="Search by client name..."
+          placeholderTextColor={isDark ? '#bbb' : '#888'}
+          value={searchText}
+          onChangeText={setSearchText}
         />
       </View>
+
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Main Content */}
-        <Text style={styles.sectionTitle}>Clients</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Clients</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-          {[1, 2, 3, 4].map((item) => (
-            <View key={item} style={styles.clientCard}>
+          {filteredClients.map((client, idx) => (
+            <View key={client.id || idx} style={[styles.clientCard, { backgroundColor: theme.card }]}>
               <Image
-                source={{ uri: 'https://randomuser.me/api/portraits/men/' + (30 + item) + '.jpg' }}
+                source={
+                  client.profile_picture
+                    ? { uri: client.profile_picture }
+                    : require('../../assets/images/login.png')
+                }
                 style={styles.clientAvatar}
               />
-              <Text style={styles.clientName}>Client {item}</Text>
+              <Text style={[styles.clientName, { color: theme.text }]}>
+                {client.user.first_name} {client.user.last_name}
+              </Text>
             </View>
           ))}
         </ScrollView>
-        <TouchableOpacity style={styles.card}>
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
-            }}
-            style={styles.cardImage}
-          />
-          <View style={styles.cardTextWrapper}>
-            <Text style={styles.cardTitle}>Yeni Randevu Oluştur</Text>
-            <Text style={styles.cardDesc}>Danışanların için hızlıca yeni randevu ekle.</Text>
-            <Ionicons name="chevron-forward" size={22} color="#fff" style={styles.cardArrow} />
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cardSmall}>
-          <Ionicons name="stats-chart-outline" size={32} color="#1976d2" style={{ marginRight: 12 }} />
-          <View style={styles.cardSmallTextWrapper}>
-            <Text style={styles.cardSmallTitle}>İstatistikler</Text>
-            <Text style={styles.cardSmallDesc}>Tüm danışan ve görüşme istatistiklerini görüntüle.</Text>
-          </View>
-        </TouchableOpacity>
+
+        <ExploreCard
+          image={require('../../assets/images/appointment.png')}
+          title="Create Appointment"
+          desc="Quickly add a new appointment for your clients."
+          buttonText="Create"
+          onPress={() => navigation.navigate('CreateAppointmentScreen')}
+        />
+        <ExploreCard
+          image={require('../../assets/images/image.png')}
+          title="Reviews"
+          desc="See all feedback and reviews from your clients."
+          buttonText="View"
+          onPress={() => navigation.navigate('DietitianReviewScreen')}
+        />
+        <ExploreCard
+          image={require('../../assets/images/match.png')}
+          title="Match Requests"
+          desc="Manage and respond to new client match requests."
+          buttonText="View"
+          onPress={() => navigation.navigate('MatchScreen')}
+        />
       </ScrollView>
-      <View style={styles.tabBar}>
+
+      <View style={[styles.tabBar, { backgroundColor: theme.card, borderTopColor: isDark ? '#333' : '#eee' }]}>
         <TouchableOpacity style={styles.tabBarItem}>
-          <Ionicons name="home" size={24} color="#222" />
+          <Ionicons name="home" size={24} color={theme.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabBarItem}>
-          <Ionicons name="calendar-outline" size={24} color="#bbb" />
+        <TouchableOpacity style={styles.tabBarItem} onPress={() => setCalendarModalVisible(true)}>
+          <Ionicons name="calendar-outline" size={24} color={theme.text} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabBarItem}>
-          <Ionicons name="stats-chart-outline" size={24} color="#bbb" />
+        <TouchableOpacity style={styles.tabBarItem} onPress={() => setStatisticsModalVisible(true)}>
+          <Ionicons name="stats-chart-outline" size={24} color={theme.text} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.tabBarItem} onPress={toggleMenu}>
-          <Ionicons name="menu-outline" size={24} color="#bbb" />
+          <Ionicons name="menu-outline" size={24} color={theme.text} />
         </TouchableOpacity>
       </View>
-      {/* Menu */}
+
       <Menu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onLogout={handleLogout} navigation={navigation} />
+
+      {calendarModalVisible && (
+        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 18, padding: 18, width: '92%', maxHeight: '80%' }}>
+            <TouchableOpacity onPress={() => setCalendarModalVisible(false)} style={{ alignSelf: 'flex-end', marginBottom: 8 }}>
+              <Ionicons name="close" size={28} color={theme.primary} />
+            </TouchableOpacity>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, color: theme.primary, marginBottom: 10, textAlign: 'center' }}>Appointments Calendar</Text>
+            <Calendar
+              markedDates={markedDates}
+              onDayPress={handleDayPress}
+              theme={{
+                backgroundColor: theme.card,
+                calendarBackground: theme.card,
+                textSectionTitleColor: theme.text,
+                dayTextColor: theme.text,
+                todayTextColor: theme.primary,
+                selectedDayBackgroundColor: theme.primary,
+                selectedDayTextColor: '#fff',
+                dotColor: '#43e97b',
+                arrowColor: theme.primary,
+              }}
+              style={{ borderRadius: 12, marginBottom: 12 }}
+            />
+            {selectedDate && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 15, color: theme.primary, marginBottom: 6 }}>Appointments for {selectedDate}</Text>
+                {appointmentsForDay.length === 0 ? (
+                  <Text style={{ color: theme.text }}>No appointments for this day.</Text>
+                ) : (
+                  appointmentsForDay.map((appt, idx) => {
+                    let clientName = '';
+                    if (appt.client && appt.client.user) {
+                      clientName = `${appt.client.user.first_name} ${appt.client.user.last_name}`;
+                    } else if (appt.client_full_name) {
+                      clientName = appt.client_full_name;
+                    } else if (typeof appt.client === 'number') {
+                      const found = clients.find(c => c.id === appt.client);
+                      if (found) {
+                        clientName = `${found.user.first_name} ${found.user.last_name}`;
+                      } else {
+                        clientName = `Client #${appt.client}`;
+                      }
+                    } else {
+                      clientName = 'Unknown Client';
+                    }
+                    return (
+                      <View key={appt.id || idx} style={{ marginBottom: 10, padding: 10, backgroundColor: '#f3f3f3', borderRadius: 10 }}>
+                        <Text style={{ color: '#222', fontWeight: 'bold' }}>{appt.title || 'Appointment'}</Text>
+                        <Text style={{ color: '#666' }}>{appt.date}</Text>
+                        <Text style={{ color: '#666' }}>Client: {clientName}</Text>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {statisticsModalVisible && (
+        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+          <View style={{ backgroundColor: theme.card, borderRadius: 18, padding: 28, width: '85%', maxWidth: 400, alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => setStatisticsModalVisible(false)} style={{ alignSelf: 'flex-end', position: 'absolute', right: 12, top: 12 }}>
+              <Ionicons name="close" size={28} color={theme.primary} />
+            </TouchableOpacity>
+            <Ionicons name="stats-chart-outline" size={40} color={theme.primary} style={{ marginBottom: 12 }} />
+            <Text style={{ fontWeight: 'bold', fontSize: 20, color: theme.primary, marginBottom: 18 }}>Statistics</Text>
+            <Text style={{ fontSize: 16, color: theme.text, marginBottom: 10 }}>Total Match Requests: <Text style={{ fontWeight: 'bold', color: theme.primary }}>{matchCount}</Text></Text>
+            <Text style={{ fontSize: 16, color: theme.text }}>Total Reviews: <Text style={{ fontWeight: 'bold', color: theme.primary }}>{reviewCount}</Text></Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 15,
     paddingBottom: 8,
   },
   headerTitle: {
+    fontFamily: 'InriaSerif-Regular',
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 1,
-    color: '#222',
+    color: '#00',
   },
   headerIcons: {
     flexDirection: 'row',
@@ -185,8 +371,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f3f3',
     marginHorizontal: 20,
     borderRadius: 10,
-    marginBottom: 10,
+    marginTop: 20,
+    marginBottom: 20,
     height: 40,
+    
   },
   searchBox: {
     flex: 1,
@@ -208,7 +396,7 @@ const styles = StyleSheet.create({
   clientCard: {
     alignItems: 'center',
     marginHorizontal: 10,
-    backgroundColor: '#f3f3f3',
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 10,
     width: 90,
@@ -223,6 +411,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#222',
     fontWeight: 'bold',
+    textAlign: 'center', 
   },
   card: {
     margin: 20,
@@ -294,6 +483,53 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  productCard: {
+    width: '90%',
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    marginVertical: 18,
+    alignItems: 'center',
+    paddingVertical: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  productImage: {
+    width: 140,
+    height: 140,
+    resizeMode: 'contain',
+    marginBottom: 18,
+  },
+  productTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#222',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  productDesc: {
+    fontSize: 15,
+    color: '#666',
+    marginBottom: 18,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+  },
+  productButton: {
+    backgroundColor: '#111',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 36,
+    marginTop: 4,
+  },
+  productButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
 });
 

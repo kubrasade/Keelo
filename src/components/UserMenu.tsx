@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useTheme } from '../context/ThemeContext';
+import { Screen } from 'react-native-screens';
 
 type MenuProps = {
   isOpen: boolean;
@@ -12,12 +14,17 @@ type MenuProps = {
 const Menu: React.FC<MenuProps> = ({ isOpen, onClose, onLogout, navigation }) => {
   if (!isOpen) return null;
 
+  const { theme, isDark } = useTheme();
+
   const menuItems = [
     { title: 'Profile', screen: 'UserProfileScreen' },
-    { title: 'Diet Plan', screen: 'DietPlan' },
-    { title: 'Progress', screen: 'Progress' },
-    { title: 'Find Dietitian', screen: 'FindDietitian' },
-    { title: 'Settings', screen: 'Settings' },
+    { title: 'Health Metrics', screen: 'HealthMetricsScreen'},
+    { title: 'Find Dietitian', screen: 'FindDietitianScreen' },
+    { title: 'Appointment', screen: 'AppointmentScreen'},
+    { title: 'Review', screen: 'ReviewScreen'},
+    { title: 'Diet Plan', screen: 'DietPlanScreen' },
+    { title: 'Progress', screen: 'ProgressScreen' },
+    { title: 'Settings', screen: 'SettingsScreen' },
   ];
 
   const handleNavigation = (screen: string) => {
@@ -27,25 +34,25 @@ const Menu: React.FC<MenuProps> = ({ isOpen, onClose, onLogout, navigation }) =>
 
   return (
     <Animated.View 
-      style={[styles.menuContainer, { transform: [{ translateX: isOpen ? 0 : -300 }] }]}>
-      <View style={styles.menuContent}>
+      style={[styles.menuContainer, { backgroundColor: theme.card, transform: [{ translateX: isOpen ? 0 : -300 }] }]}>
+      <View style={[styles.menuContent, { backgroundColor: theme.card }]}>
         <View style={styles.menuItems}>
           {menuItems.map((item, index) => (
             <TouchableOpacity
               key={index}
-              style={styles.menuItem}
+              style={[styles.menuItem, { borderBottomColor: isDark ? '#333' : '#ddd' }]}
               onPress={() => handleNavigation(item.screen)}>
-              <Ionicons name="chevron-forward" size={20} color="#4CAF50" />
-              <Text style={styles.menuItemText}>{item.title}</Text>
+              <Ionicons name="chevron-forward" size={20} color={theme.primary} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>{item.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}> 
-          <Text style={styles.logoutText}>Logout</Text>
+        <TouchableOpacity style={[styles.logoutButton, { backgroundColor: theme.primary }]} onPress={onLogout}> 
+          <Text style={[styles.logoutText, { color: theme.background }]}>Logout</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Ionicons name="close-circle-outline" size={30} color="#fff" />
+        <Ionicons name="close-circle-outline" size={30} color={theme.primary} />
       </TouchableOpacity>
     </Animated.View>
   );

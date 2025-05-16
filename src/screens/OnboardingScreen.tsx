@@ -111,7 +111,7 @@ export default OnboardingScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d3d3d3',
+    backgroundColor: '#F8F9FA',
     paddingTop: 100,
     paddingHorizontal: 30,
     alignItems: 'center',
@@ -123,13 +123,13 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     borderRadius: (height * 0.38) / 2, 
     borderWidth: 5, 
-    borderColor: '#fff', 
+    borderColor: '#2E7D32', 
   },
   
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#2E7D32',
+    color: '#000',
     textAlign: 'center',
     marginBottom: 10,
   },
